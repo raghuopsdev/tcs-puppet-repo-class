@@ -1,0 +1,45 @@
+name: Puppet CI Validation
+
+on:
+  push:
+    branches: [ main, testing, production ]
+  pull_request:
+    branches: [ main, testing, production ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Install Puppet Gem
+        run: |
+          gem install puppet
+
+      - name: Validate Puppet Manifest Syntax
+        run: |
+          echo "Running puppet parser validate on all manifests..."
+          find manifests/ site-modules/ -name "*.pp" -exec puppet parser validate {} +
+
+      - name: Validate Hiera YAML Syntax
+        run: |
+          echo "Running Ruby YAML syntax check on hieradata..."
+          ruby -ryaml -e '
+            Dir.glob("hieradata/**/*.yaml") do |f|
+              begin
+                YAML.load_file(f)
+                puts "OK: #{f}"
+              rescue => e
+                STDERR.puts "ERROR in #{f}: #{e.message}"
+                exit 1
+              end
+            end
+          '
+EOF
